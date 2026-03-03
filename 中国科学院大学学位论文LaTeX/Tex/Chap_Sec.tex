@@ -1,0 +1,303 @@
+\chapter{预备知识}\label{chap:preliminary}
+本章介绍实现基于Tag—Based KEM 的端到端通信协议所需的预备知识。主要包括符号定义和本文使用密码学工具。
+\section{符号约定}
+\label{subsec:notation}
+
+本文使用  $ \lambda $  表示安全参数。记  $ \mathbb{Z} $  为整数集， $ \mathbb{R} $  为实数集， $ \mathbb{R}_{+} $  为正实数集。对任意正整数  $ q $ ， $ \mathbb{Z}_q $  表示模  $ q $  的整数集合，通常取为  $ \{0, 1, \dots, q-1\} $ 。对任意正整数  $ n $ ，定义  $ [n] = \{1, \dots, n\} $  以及  $ \{a_i\}_{i \in [n]} = \{a_1, \dots, a_n\} $ 。此外， $ \{0,1\}^n $  表示所有长度为  $ n $  的二进制字符串的集合， $ \{0,1\}^* $  表示所有有限长度二进制字符串的集合。
+对于 n ∈ N，[n] 表示 {1, ..., n}。
+
+我们将一个确定性或随机化算法 A 的输入 x 和输出 y 写作 y ← A(x) 或 y ←\$ A(x)，将有随机数输入的算法写作 y ← A(x; r)。另外我们用 Pr[G($\mathcal{A}$)] 表示涉及对手 $\mathcal{A}$ 的游戏 G 输出 true 的概率。
+
+\section{可证明安全}
+可证明安全是密码方案设计与分析的关键范式，其核心在于通过归约方法形式化地论证方案的安全性。该方法包含两个基本要素：
+
+\begin{enumerate}
+    \item {安全性定义}：从敌手能力和安全目标两方面，构建形式化的安全游戏，精确刻画方案所需满足的安全属性；
+    
+    \item {安全归约}：假设存在一个概率多项式时间（PPT）敌手  $ \mathcal{A} $  能以不可忽略的优势攻破该密码方案，则可构造另一个 PPT 敌手  $ \mathcal{B} $ ，通过模拟安全游戏并调用  $ \mathcal{A} $  作为子程序，从而求解某个公认的数学困难问题，如 CDH、LWE 等或攻破某个被假设为安全的底层密码原语。由于该困难问题在计算上不可行， $ \mathcal{B} $  的成功概率是可忽略的，从而推出  $ \mathcal{A} $  的优势亦可忽略。由此，该密码方案在给定安全模型下是可证明安全的。
+\end{enumerate}
+
+为形式化上述概念，我们引入以下基本定义：
+
+\begin{definition}[多项式时间算法]
+若存在一个多项式  $ P(\cdot) $ ，使得对任意输入  $ x \in \{0,1\}^* $ ，算法  $ \mathsf{A}(x) $  总能在  $ P(|x|) $  步内终止，则称  $ \mathsf{A} $  为多项式时间算法。若算法具有内部随机性且期望运行时间由多项式界定，则称为概率多项式时间（PPT）算法。
+\end{definition}
+
+\begin{definition}[可忽略函数]
+对于非负函数 $f$，如果对任意  $ c > 0 $ ，存在  $ \lambda_0 >0 $ ，使得对所有  $ \lambda > \lambda_0 $ ，有
+ $ f(\lambda) < \lambda^{-c}$，则称 $f$ 为可忽略函数，下文用$negl(\lambda)$ 表示。
+
+ 
+
+\end{definition}
+
+\section{密码学原语}
+
+\subsection{Diffie-Hellman 密钥交换}
+
+设  $ p $  为一个大素数， $ g $  为乘法群  $ \mathbb{Z}_p^* $  的一个生成元。Diffie-Hellman（DH）密钥交换协议在两个参与者 Alice 和 Bob 之间进行，过程如下：
+\begin{enumerate}
+    \item Alice 随机选取私钥  $ a \leftarrow \mathbb{Z}_{p-1} $ ，计算公钥  $ PK_A = g^a \bmod p $ ，并将  $ PK_A $  发送给 Bob；
+    \item Bob 随机选取私钥  $ b \leftarrow \mathbb{Z}_{p-1} $ ，计算公钥  $ PK_B = g^b \bmod p $ ，并将  $ PK_B $  发送给 Alice；
+    \item Alice 计算共享密钥  $ K = PK_B^a \bmod p = g^{ab} \bmod p $ ；
+    \item Bob 计算共享密钥  $ K = PK_A^b \bmod p = g^{ab} \bmod p $ 。
+\end{enumerate}
+
+最终，双方在不安全信道上协商出相同的会话密钥  $ K \in \mathbb{Z}_p^* $ ，而任何被动窃听者仅能观察到  $ (g, p, PK_A, PK_B) $ ，在计算性 Diffie-Hellman（CDH）假设下无法有效恢复  $ K $ 。
+
+在本文中密钥交换将采用curve25519算法和SM2算法。
+
+%===========================================
+\begin{definition}[PRF-ODH 假设]
+设 $g$ 为素数阶循环群 $G$（阶为 $q$）的生成元，$F: G \times \{0,1\}^* \to \{0,1\}^\lambda$ 为一个伪随机函数。  
+我们称关于 $F$ 和 $g$ 的 \textbf{PRF-ODH 假设成立}，如果对任意概率多项式时间敌手 $\mathcal{A}$，其在图~\ref{fig:prf_odh_exp} 所示安全性实验中的优势可忽略，即：
+\[
+\mathsf{Adv}^{\mathsf{prf\text{-}odh}}_{g,F}(\mathcal{A}) 
+= \left| \Pr\left[ \mathsf{PRFODH}^{\mathcal{A}}_{g,F} \Rightarrow 1 \right] - \frac{1}{2} \right| \leq \mathsf{negl}(\kappa),
+\]
+其中 $\kappa$ 为安全参数，$\mathsf{negl}(\cdot)$ 为可忽略函数。  
+本文采用 Bellare 等人~\cite{brendel2017prf} 提出的 $\mathsf{mmPRF\text{-}ODH}$ 变体。
+
+\begin{figure}[htbp]
+\centering
+\footnotesize
+\setlength{\fboxsep}{3pt}
+\fbox{
+\begin{minipage}{0.92\linewidth}
+\begin{tabular}{@{}p{0.42\linewidth}@{\hspace{1em}}p{0.26\linewidth}@{\hspace{1em}}p{0.26\linewidth}@{}}
+%
+% 第一栏：主实验
+\begin{minipage}[t]{\linewidth}
+\textbf{实验 } $\mathsf{PRFODH}^{\mathcal{A}}_{g,F}$:
+\begin{enumerate}[leftmargin=*,nosep,topsep=0pt,partopsep=0pt,itemsep=1pt]
+    \item[1:] $u,v \xleftarrow{\$} \mathbb{Z}_q$
+    \item[2:] $L \gets \emptyset$
+    \item[3:] $(x^*,\mathsf{st}) \xleftarrow{\$} \mathcal{A}^{\mathcal{U},\mathcal{V}}(g^u,g^v)$
+    \item[4:] $y_0 \gets F(g^{uv},x^*)$
+    \item[5:] $y_1 \xleftarrow{\$} \{0,1\}^\lambda$
+    \item[6:] $b \xleftarrow{\$} \{0,1\}$
+    \item[7:] $b' \xleftarrow{\$} \mathcal{A}^{\mathcal{U},\mathcal{V}}(\mathsf{st},y_b)$
+    \item[8:] \textbf{if} $(g^{uv},x^*) \in L$ \\
+          \quad \textbf{then return} $z \xleftarrow{\$} \{0,1\}$
+    \item[9:] \textbf{return} $\mathbf{1}_{b = b'}$
+\end{enumerate}
+\end{minipage}
+&
+% 第二栏：预言机 U
+\begin{minipage}[t]{\linewidth}
+\textbf{预言机 } $\mathcal{U}(W,x)$:
+\begin{enumerate}[leftmargin=*,nosep,topsep=0pt,itemsep=1pt]
+    \item[1:] $L \gets L \cup \{(W^u,x)\}$
+    \item[2:] \textbf{return} $F(W^u,x)$
+\end{enumerate}
+\end{minipage}
+&
+% 第三栏：预言机 V
+\begin{minipage}[t]{\linewidth}
+\textbf{预言机 } $\mathcal{V}(W,x)$:
+\begin{enumerate}[leftmargin=*,nosep,topsep=0pt,itemsep=1pt]
+    \item[1:] $L \gets L \cup \{(W^v,x)\}$
+    \item[2:] \textbf{return} $F(W^v,x)$
+\end{enumerate}
+\end{minipage}
+%
+\end{tabular}
+\end{minipage}
+}
+\caption{PRF-ODH 安全性实验及预言机定义}
+\label{fig:prf_odh_exp}
+\end{figure}
+
+
+\end{definition}
+
+
+%=======================================================
+\subsection{数字签名方案}
+数字签名方案$ S $ 由以下三个多项式时间算法组成：
+\begin{itemize}
+
+    \item  $ S.\mathsf{KGen}(\lambda)\$  \rightarrow (pk, sk) $ ：概率性密钥生成算法，输入安全参数 $\lambda$ ，输
+    出签名私钥$sk$和验签公钥$pk$。
+    \item  $ S.\mathsf{Sign}(sk, m)\$  \rightarrow \sigma $ ：概率性签名算法，输入私钥  $ sk $  和消息  $ m \in \{0,1\}^* $ ，输出签名  $ \sigma $ 。
+    \item  $ S.\mathsf{Ver}(pk, m, \sigma) \rightarrow \{0,1\} $ ：确定性验证算法，输入公钥  $ pk $ 、消息  $ m $  和签名  $ \sigma $ ，若  $ \sigma $  是  $ m $  关于  $ pk $  的有效签名则输出  $ 1 $ ，否则输出  $ 0 $ 。
+\end{itemize}
+
+在本文中，国产化本分数字签名方案将采用SM2算法。
+
+\subsection{密钥封装机制}
+密钥封装机制  $ \Sigma $  由以下三个多项式时间算法组成：
+\begin{itemize}
+    \item  $ \Sigma.\mathsf{KGen}()\$ \rightarrow (pk, sk) $ ：概率性密钥生成算法，输入安全参数（隐含），输出公钥  $ pk $  和私钥  $ sk $ 。
+
+    \item  $ \Sigma.\mathsf{Enc}(pk)\$  \rightarrow (ct, ss) $ ：概率性封装算法，输入公钥  $ pk $ ，输出密文（即封装） $ ct $  和共享密钥  $ ss $ 。  
+    \item  $ \Sigma.\mathsf{Dec}(sk, ct) \rightarrow ss $ ：确定性解封装算法，输入私钥  $ sk $  和密文  $ ct $ ，输出共享密钥  $ ss \in \mathcal{K} $ ，若  $ ct $  无效，则输出  $ \perp $ 。
+\end{itemize}
+
+在本文中，密钥封装机制采用NIST标准后量子密钥封装机制MLKEM和国产优秀后量子密钥封装机制Aigis-Enc算法。
+
+\begin{definition}[IND-CCA 安全]
+一个密钥封装机制（KEM）$\Gamma$ 被称为在**选择密文攻击下不可区分**（Indistinguishability under Chosen Ciphertext Attack, IND-CCA），如果对于任意概率多项式时间敌手 $\mathcal{A}$，即使其能够访问解封装预言机，也无法有效区分挑战密文对应的共享密钥与一个均匀随机的共享密钥。
+
+形式化地，定义敌手 $\mathcal{A}$ 的优势为：
+\[
+\mathsf{Adv}^{\mathsf{ind\text{-}cca}}_{\Gamma}(\mathcal{A}) 
+= \left| \Pr\left[ \mathsf{IND\text{-}CCA}^{\mathcal{A}}_{\Gamma} \Rightarrow 1 \right] - \frac{1}{2} \right|,
+\]
+其中 $\mathsf{IND\text{-}CCA}^{\mathcal{A}}_{\Gamma}$ 为图~\ref{fig:ind_cca_exp} 所示的安全性实验。
+\end{definition}
+
+\begin{figure}[htbp]
+\centering
+\footnotesize
+\setlength{\fboxsep}{3pt}
+\fbox{
+\begin{minipage}{0.92\linewidth}
+\begin{tabular}{@{}p{0.58\linewidth}@{\hspace{1.2em}}p{0.36\linewidth}@{}}
+%
+% 主实验
+\begin{minipage}[t]{\linewidth}
+\textbf{实验 } $\mathsf{IND\text{-}CCA}^{\mathcal{A}}_{\Gamma}$:
+\begin{enumerate}[leftmargin=*,nosep,topsep=0pt,itemsep=1pt]
+    \item[1:] $(pk, sk) \xleftarrow{\$} \Gamma.\mathsf{KGen}()$
+    \item[2:] $(c^*, ss^*_0) \xleftarrow{\$} \Gamma.\mathsf{Enc}(pk)$
+    \item[3:] $ss^*_1 \xleftarrow{\$} \Gamma.\mathcal{K}$ （随机共享密钥空间）
+    \item[4:] $b \xleftarrow{\$} \{0,1\}$
+    \item[5:] $b' \xleftarrow{\$} \mathcal{A}^{\mathcal{O}_{\mathsf{Dec}}}(pk, c^*)$
+    \item[6:] \textbf{if} $b = b'$ \textbf{then return} $1$
+    \item[7:] \textbf{else return} $0$
+\end{enumerate}
+\end{minipage}
+&
+% 解封装预言机
+\begin{minipage}[t]{\linewidth}
+\textbf{预言机 } $\mathcal{O}_{\mathsf{Dec}}(c)$:
+\begin{enumerate}[leftmargin=*,nosep,topsep=0pt,itemsep=1pt]
+    \item[1:] \textbf{if} $c = c^*$ \textbf{then return} $\bot$
+    \item[2:] \textbf{else return} $\Gamma.\mathsf{Dec}(sk, c)$
+\end{enumerate}
+\end{minipage}
+%
+\end{tabular}
+\end{minipage}
+}
+\caption{KEM 的 IND-CCA 安全性实验}
+\label{fig:ind_cca_exp}
+\end{figure}
+
+
+
+
+
+\section{密码学工具}
+
+\subsection{对称加密}
+一个对称加密方案  $ \Pi_{\mathsf{SKE}} = (\mathsf{Gen}, \mathsf{Enc}, \mathsf{Dec}) $  由以下三个多项式时间算法组成：
+
+\begin{itemize}
+    \item  $ \mathsf{Gen}(1^\lambda) \rightarrow k $ ：密钥生成算法，输入安全参数  $ \lambda $ （以一元形式  $ 1^\lambda $  表示），输出密钥  $ k $ ；
+    
+    \item  $ \mathsf{Enc}(k, m) \rightarrow c $ ：加密算法，输入密钥  $ k $  和明文消息  $ m \in \mathcal{M} $ ，输出密文  $ c $ ，其中  $ \mathcal{M} $  为明文空间；
+    
+    \item  $ \mathsf{Dec}(k, c) \rightarrow m' $ ：解密算法，输入密钥  $ k $  和密文  $ c $ ，输出恢复的明文  $ m' $ 。
+\end{itemize}
+
+在本文中，国产化部分我们将采用SM4算法对消息进行加密。
+
+\subsection{伪随机函数}
+一个伪随机函数（Pseudorandom Function, PRF）是一个确定性多项式时间算法  
+ $ F : \mathcal{K} \times \{0,1\}^* \to \{0,1\}^\lambda $ ，  
+其中  $ \mathcal{K} $  为密钥空间， $ \lambda $  为安全参数。  
+给定密钥  $ k \in \mathcal{K} $  和任意标签（或输入） $ \mathsf{label} \in \{0,1\}^* $ ，  
+PRF 输出一个  $ \lambda $  比特的字符串  $ F(k, \mathsf{label}) \in \{0,1\}^\lambda $ 。
+本文中，国产化部分采用的伪随机函数为SM3算法，原协议采用sha256算法。
+
+\subsection{密钥派生函数，HKDF}
+HKDF 是一种基于 HMAC 的密钥派生函数，由以下两个确定性算法组成：
+
+\begin{itemize}
+    \item  $ \mathsf{HKDF}.\mathsf{Extract}(\mathsf{ikm}, \mathsf{salt}) \rightarrow \mathsf{ext} $ ：  
+    提取算法，输入初始密钥材料  $ \mathsf{ikm} $  和盐值  $ \mathsf{salt} $ ，输出一个提取密钥  $ \mathsf{ext} $ 。该算法使用底层密码学哈希函数构造的 HMAC 实现，旨在从可能低熵或非均匀的  $ \mathsf{ikm} $  中提取出高熵、接近均匀的密钥。
+
+    \item  $ \mathsf{HKDF}.\mathsf{Expand}(k, \mathsf{label}, \ell) \rightarrow k' $ ：  
+    扩展算法，输入密钥  $ k $ （通常为  $ \mathsf{HKDF}.\mathsf{Extract} $  的输出）、标签  $ \mathsf{label} \in \{0,1\}^* $  以及目标长度  $ \ell > 0 $ ，输出一个长度为  $ \ell $  比特的派生密钥  $ k' \in \{0,1\}^\ell $ 。该算法同样基于 HMAC，并通过迭代结构支持任意长度的密钥扩展。
+\end{itemize}
+%==========================
+
+\begin{definition}[安全伪随机函数]
+    一个伪随机函数 $F$ 被称为是安全的，如果对于任意敌手而言，在计算上无法区分未知密钥下的伪随机函数输出与真随机函数输出。
+    
+    更精确地，设 $F: \mathcal{K} \times \{0,1\}^* \to \{0,1\}^\lambda$，定义敌手 $A$ 的优势为：
+    \[
+    \text{Adv}^{\text{prf}}_F(A) = \left| \Pr\left[ A^{F(k,\cdot)}(1^\lambda) = 1 \mid k \xleftarrow{\$} \mathcal{K} \right] - \Pr\left[ A^{R(\cdot)}(1^\lambda) = 1 \mid R \xleftarrow{\$} \text{Func}(\{0,1\}^*, \{0,1\}^\lambda) \right] \right|
+    \]
+    其中 $k \xleftarrow{\$} \mathcal{K}$ 表示从密钥空间均匀随机选取密钥，$R$ 表示从所有映射 $\{0,1\}^* \to \{0,1\}^\lambda$ 的函数集合中均匀随机选取的真随机函数。
+
+    在 PQ3 协议中，我们有时要求一个多参数函数在特定输入上是安全伪随机函数。例如，假设 $f$ 是一个 $n$ 元输入函数，我们可能要求 $f$ 在其第 $j$ 个输入上是伪随机的。形式上，定义：
+    \[
+    f'(x_j, (x_1, \ldots, x_{j-1}, x_{j+1}, \ldots, x_n)) = f(x_1, \ldots, x_n)
+    \]
+    其中 $(x_1, \ldots, x_{j-1}, x_{j+1}, \ldots, x_n)$ 被无歧义地编码为 $\{0,1\}^*$ 中的字符串，并要求 $f'$ 是一个安全伪随机函数。我们使用以下记号表示敌手 $A$ 针对 $f$ 的第 $j$ 个输入的优势：
+    \[
+    \text{Adv}^{\text{prf}_j}_f(A) = \text{Adv}^{\text{prf}}_{f'}(A)
+    \]
+\end{definition}
+%==========================
+
+\newcommand{\tkem}{\texttt{TKEM}}
+\newcommand{\Aigis}{\texttt{Aigis}}
+\newcommand{\KEM}{\texttt{KEM}}
+\newcommand{\from}{\gets}
+
+\newcommand{\Encap}{\mathsf{Encap}}
+\newcommand{\Decap}{\mathsf{Decap}}
+\newcommand{\KeyGen}{\mathsf{KeyGen}}
+\newcommand{\TagKEM}{\mathsf{Tag\text{-}KEM}}
+\newcommand{\Adv}{\mathrm{Adv}}
+
+\subsection{基于tag的密钥封装机制}
+Tag-KEM 是传统密钥封装机制（KEM）的扩展，其特点是在密钥封装过程中引入标签 $\tau$。
+标签用于将封装密钥与某个上下文或密文绑定，从而增强安全性并支持更高效的混合加密构造。
+与传统 KEM 不同，Tag-KEM 将密钥生成与封装过程分离为两个阶段：
+首先生成一次性密钥及状态信息，然后结合标签生成封装密文。
+具体地，$\tkem$ 由以下三个算法组成：
+
+\begin{itemize}
+  \item $\tkem.\text{KeyGen}() \rightarrow (PK, SK) $：提供密钥生成功能与底层 KEM 保持一致，调用 $\KEM.\text{KeyGen}()$ 生成公钥 $PK$ 和私钥 $SK$，输出密钥对 $(PK, SK)$。
+  
+  \item $\tkem.\text{Enc}(PK, tag) \rightarrow (ct, ss) $：提供密钥封装功能。输入PK和tag，输出为密文ct和共享秘密ss。
+  
+  \item $\tkem.\text{Dec}(SK, ct, tag) \rightarrow ss$：提供密钥解封装功能。输入私钥SK，密文ct，标签tag，输出为共享秘密ss。
+\end{itemize}
+\begin{definition}[Tag-KEM 的 IND-CCA 安全性]
+一个带标签的密钥封装机制 $\TagKEM = (\KeyGen, \Encap, \Decap)$ 被称为是 IND-CCA 安全的，如果对于任意概率多项式时间敌手 $\mathcal{A}$，其在如下安全实验 $\mathsf{Exp}_{\TagKEM,\mathcal{A}}^{\mathsf{IND\text{-}CCA}}(\lambda)$ 中的优势
+\[
+\Adv_{\TagKEM,\mathcal{A}}^{\mathsf{IND\text{-}CCA}}(\lambda)
+= \left| \Pr\left[ b' = b \right] - \frac{1}{2} \right|
+\]
+关于安全参数 $\lambda$ 是可忽略的。即在计算上无法区分挑战密文的共享秘密和均匀随机共享秘密，
+\end{definition}
+
+
+
+\begin{algorithm}[H]
+\caption{安全实验 $\mathsf{Exp}_{\TagKEM,\mathcal{A}}^{\mathsf{IND\text{-}CCA}}(\lambda)$}
+\begin{algorithmic}[1]
+\State 运行 $(pk, sk) \gets \KeyGen(1^\lambda)$，将公钥 $pk$ 发送给敌手 $\mathcal{A}$。
+\State $\mathcal{A}$ 可自适应地向解封装预言机 $\mathcal{O}_{\Decap(sk,\cdot,\cdot)}$ 提交查询。
+\State $\mathcal{A}$ 输出一个目标标签 $t^*$。
+\State 挑战者运行 $(c^*, K^*) \gets \Encap(pk, t^*)$。
+\State 随机选取比特 $b \xleftarrow{\$} \{0,1\}$。
+\If{$b = 0$}
+    \State 令 $K$ 为从 $\{0,1\}^{|K^*|}$ 中均匀随机选取的字符串；
+\Else
+    \State 令 $K \gets K^*$；
+\EndIf
+\State 将挑战对 $(c^*, K)$ 发送给 $\mathcal{A}$。
+\State $\mathcal{A}$ 可继续查询解封装预言机，但禁止查询 $(c^*, t^*)$。
+\State $\mathcal{A}$ 输出猜测比特 $b'$。
+\State 若 $b' = b$，则实验输出 1；否则输出 0。
+\end{algorithmic}
+\end{algorithm}
+
+\noindent

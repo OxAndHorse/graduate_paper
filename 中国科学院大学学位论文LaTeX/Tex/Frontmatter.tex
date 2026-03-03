@@ -1,0 +1,41 @@
+%---------------------------------------------------------------------------%
+%->> Frontmatter
+%---------------------------------------------------------------------------%
+%-
+%-> 生成封面
+%-
+
+\maketitle% 生成中文封面
+\MAKETITLE% 生成英文封面
+%-
+%-> 作者声明
+%-
+\makedeclaration% 生成声明页
+%-
+%-> 中文摘要
+%-
+\intobmk\chapter*{摘\quad 要}% 显示在书签但不显示在目录
+\setcounter{page}{1}% 开始页码
+\pagenumbering{Roman}% 页码符号
+
+随着量子计算技术的快速发展，传统公钥密码体制（如基于椭圆曲线的Diffie-Hellman）面临被Shor算法破解的严峻威胁，这使得当前主流的端到端加密（E2EE）通信协议（如Signal）的安全性受到根本性挑战。同时，国内在端到端加密协议的后量子迁移研究方面尚存空白。
+针对现有后量子端到端加密方案（如PQXDH、PQ3）存在的高通信开销、密钥更新频率受限等问题，本文提出了一种基于标签密钥封装机制（Tag-KEM）的后量子混合模式端到-端加密通信协议。该协议的核心创新在于利用Tag-KEM将后量子密钥与特定通信上下文（如会话ID、用户身份）进行强绑定，从而有效避免了为每个会话重复生成后量子密文所带来的巨大带宽和计算开销。
+本文的主要工作包括：1）设计并形式化分析了基于Tag-KEM的多阶段密钥交换协议，在理论上证明了其满足多阶段密钥不可区分性（ms-Ind），能够提供前向安全与后向安全；2）完成了协议的具体工程实现，不仅集成了国际标准的ML-KEM（Kyber）和国产后量子算法Aigis-Enc，还全面融入了SM2、SM3、SM4等国密算法，实现了协议的自主可控；3）为保障长期静态私钥的安全，设计了基于Intel SGX可信执行环境（TEE）的硬件级安全架构；4）通过实验评估，验证了本方案在显著降低后量子迁移成本的同时，保持了良好的性能与安全性。
+本研究为构建兼具抗量子攻击能力、高性能和国产密码合规性的新一代端到端加密通信系统提供了有效的理论支撑与实践路径。
+
+
+\keywords{后量子密码学；端到端加密；Tag-KEM；双棘轮机制；国密算法；可信执行环境}% 中文关键词
+%-
+%-> 英文摘要
+%-
+\intobmk\chapter*{Abstract}% 显示在书签但不显示在目录
+
+Chinese abstracts, English abstracts, table of contents, the main contents, references, appendix, acknowledgments, author's resume and academic papers published during the degree study and other relevant academic achievements must start with another right page (odd-numbered page).
+    %- the current style, comment all the lines in plain style definition.
+
+\KEYWORDS{University of Chinese Academy of Sciences, Thesis, LaTeX Template}% 英文关键词
+
+\pagestyle{enfrontmatterstyle}%
+\cleardoublepage\pagestyle{frontmatterstyle}%
+
+%---------------------------------------------------------------------------%
